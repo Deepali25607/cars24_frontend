@@ -1,5 +1,10 @@
 const TOKEN_KEY = 'itsm_token';
 
+// Deployed builds set VITE_API_URL to the backend origin's /api root
+// (e.g. https://cars24-backend.onrender.com/api); local dev falls back
+// to the Vite proxy at /api.
+export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
@@ -10,7 +15,7 @@ export async function api(path, { method = 'GET', body, formData } = {}) {
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: formData ? formData : body ? JSON.stringify(body) : undefined,

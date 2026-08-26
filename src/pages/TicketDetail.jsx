@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, fmtDate, timeAgo, getToken } from '../api';
+import { api, API_BASE, fmtDate, timeAgo, getToken } from '../api';
 import { useAuth } from '../auth';
 import { Avatar, Icon, Modal, Priority, Spinner, StatusChip, STATUS_LABEL, useToast } from '../ui';
 
@@ -64,7 +64,7 @@ export default function TicketDetail() {
   };
 
   const viewAttachment = async (attId) => {
-    const res = await fetch(`/api/tickets/${id}/attachments/${attId}`, {
+    const res = await fetch(`${API_BASE}/tickets/${id}/attachments/${attId}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) { toast('Could not open attachment', true); return; }
