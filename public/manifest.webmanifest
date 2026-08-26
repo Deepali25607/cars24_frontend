@@ -1,0 +1,12 @@
+{
+  "name": "Cars24 IT Service Desk",
+  "short_name": "IT Desk",
+  "description": "Report and track IT issues, requests and knowledge.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#4b3ae9",
+  "icons": [
+    { "src": "/cars24.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
