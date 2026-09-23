@@ -22,6 +22,7 @@ import RequestDetail from './pages/RequestDetail'
 import Sla from './pages/admin/Sla'
 import Automation from './pages/admin/Automation'
 import Integrations from './pages/admin/Integrations'
+import EmailChannel from './pages/admin/EmailChannel'
 import Cmdb from './pages/Cmdb'
 import Problems from './pages/Problems'
 import ProblemDetail from './pages/ProblemDetail'
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/admin/sla" element={<Guard roles={['ADMIN']}><Sla /></Guard>} />
         <Route path="/admin/automation" element={<Guard roles={['ADMIN']}><Automation /></Guard>} />
         <Route path="/admin/integrations" element={<Guard roles={['ADMIN']}><Integrations /></Guard>} />
+        <Route path="/admin/email" element={<Guard roles={['ADMIN']}><EmailChannel /></Guard>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

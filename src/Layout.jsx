@@ -94,6 +94,7 @@ export default function Layout() {
               <NavItem to="/admin/sla" icon="sliders">SLA</NavItem>
               <NavItem to="/admin/automation" icon="zap">Automation</NavItem>
               <NavItem to="/admin/integrations" icon="link">Integrations</NavItem>
+              <NavItem to="/admin/email" icon="send">Email channel</NavItem>
               <NavItem to="/admin/audit" icon="shield">Audit trail</NavItem>
             </>
           )}

@@ -113,11 +113,16 @@ export default function TicketDetail() {
             <span className="tnum">{t.ticket_number}</span>
             <StatusChip status={t.status} />
             <Priority code={t.priority_code} label={t.priority_label} />
+            {t.source === 'EMAIL' && <span className="chip chip-EMAIL" title="Created from an email to the support mailbox">✉ Source: Email</span>}
+            {t.caller_unverified === 1 && <span className="chip chip-REOPENED" title="Sender is not a registered user — review the caller">Unverified sender</span>}
           </div>
           <h1>{t.title}</h1>
           <p className="sub">
-            Raised by <b>{t.requester_name}</b> · {fmtDate(t.created_at)}
+            Raised by <b>{t.caller_unverified === 1 ? t.caller_email : t.requester_name}</b>
+            {t.source === 'EMAIL' && t.caller_unverified !== 1 && t.caller_email && <> ({t.caller_email})</>} · {fmtDate(t.created_at)}
             {t.reopen_count > 0 && <> · reopened ×{t.reopen_count}</>}
+            {t.related_ticket && <> · follow-up to <Link to={`/tickets/${t.related_ticket.id}`}>{t.related_ticket.ticket_number}</Link></>}
+            {t.follow_up_tickets?.length > 0 && <> · continued in {t.follow_up_tickets.map((f, i) => <span key={f.id}>{i > 0 && ', '}<Link to={`/tickets/${f.id}`}>{f.ticket_number}</Link></span>)}</>}
           </p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>← Back</button>
@@ -188,14 +193,16 @@ export default function TicketDetail() {
                   <div className="c-text">{c.body}</div>
                 </div>
               ) : (
-                <div key={c.id} className="comment">
-                  <Avatar name={c.author_name} />
+                <div key={c.id} className={`comment${c.source === 'EMAIL' ? ' via-email' : ''}`}>
+                  <Avatar name={c.source === 'EMAIL' && c.sender_email && c.author_role === 'EMPLOYEE' && c.sender_email !== t.requester_email ? c.sender_email : c.author_name} />
                   <div className="c-body">
                     <div className="c-head">
-                      <span className="c-name">{c.author_name}</span>
+                      <span className="c-name">{c.source === 'EMAIL' && c.sender_email ? c.sender_email : c.author_name}</span>
                       {['AGENT', 'TEAM_LEAD', 'ADMIN'].includes(c.author_role) && (
                         <span className="chip chip-PENDING">IT</span>
                       )}
+                      {c.source === 'EMAIL' && <span className="chip chip-EMAIL" title="Received by email">✉ via Email</span>}
+                      {c.external_participant === 1 && <span className="chip chip-REOPENED" title="Sender is not the caller or on the CC list">External participant</span>}
                       <span className="c-time">{timeAgo(c.created_at)}</span>
                     </div>
                     <div className="c-text">{c.body}</div>
@@ -219,6 +226,11 @@ export default function TicketDetail() {
                       Internal work note
                     </label>
                   )}
+                  {canWork && (t.source === 'EMAIL' || t.thread_subject) && (
+                    <span className={`compose-hint ${internal ? 'hint-internal' : 'hint-email'}`}>
+                      {internal ? '🔒 Internal — not emailed' : `✉ Will be emailed to ${t.caller_email || t.requester_email}`}
+                    </span>
+                  )}
                   <label className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', cursor: 'pointer' }}>
                     <Icon name="paperclip" size={13} /> Attach file
                     <input type="file" hidden ref={fileRef} onChange={uploadFile}
@@ -237,6 +249,7 @@ export default function TicketDetail() {
           )}
           {t.sla && <SlaPanel sla={t.sla} status={t.status} isIT={isIT} />}
           {isIT && <MajorPanel t={t} user={user} onChanged={load} />}
+          {isIT && (t.source === 'EMAIL' || t.thread_subject) && <EmailThreadPanel t={t} />}
           {isIT && <AiPanel t={t} />}
           <div className="card card-pad">
             <h3 style={{ marginBottom: 12 }}>Details</h3>
@@ -302,8 +315,43 @@ function historyLabel(action) {
     STATUS_ASSIGNED: 'Assigned',
     AUTO_ASSIGNED: 'Auto-routed', WORKFLOW: 'Workflow ran', WORKFLOW_TASK: 'Workflow task',
     SLA_WARNING: 'SLA warning', SLA_BREACH: 'SLA breached', SLA_ESCALATION: 'SLA escalated',
+    EMAIL_LINKED: 'Linked by email follow-up', EMAIL_BOUNCE: 'Email delivery failed',
   };
   return map[action] || action;
+}
+
+// S10 extension: the email thread behind an email-sourced ticket (IT only).
+function EmailThreadPanel({ t }) {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { api(`/email/ticket/${t.id}`).then(setRows).catch(() => setRows([])); }, [t.id, t.updated_at]);
+  const n = rows?.length ?? 0;
+  return (
+    <div className="card card-pad">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <h3 style={{ margin: 0 }}>✉ Email thread</h3>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={() => setOpen((o) => !o)}>{open ? 'Hide' : `Show (${n})`}</button>
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>
+        Caller: {t.caller_email || t.requester_email}
+        {(() => { try { const cc = JSON.parse(t.cc_list || '[]'); return cc.length ? ` · CC: ${cc.join(', ')}` : ''; } catch { return ''; } })()}
+      </p>
+      {open && (rows === null ? <Spinner dark /> : rows.length === 0 ? <p className="muted">No emails logged.</p> : (
+        <div className="timeline" style={{ marginTop: 10 }}>
+          {rows.map((m) => (
+            <div className="tl-item" key={m.id}>
+              <div className="tl-act">{m.direction === 'INBOUND' ? '📥 Received' : '📤 Sent'} · {m.event_type || m.processing_status}</div>
+              <div style={{ fontSize: 12.5 }}>{m.subject}</div>
+              <div className="tl-meta">
+                {m.direction === 'INBOUND' ? m.from_address : m.to_addresses} · {fmtDate(m.received_or_sent_at || m.created_at)}
+                {m.processing_status !== 'PROCESSED' && <> · <b>{m.processing_status}</b>{m.ignore_reason ? ` — ${m.ignore_reason}` : ''}</>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ADVANCED A8: satisfaction rating (requester, after resolution)

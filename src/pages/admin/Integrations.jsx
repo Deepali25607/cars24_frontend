@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, fmtDate, timeAgo } from '../../api';
 import { Empty, Modal, Spinner, useToast } from '../../ui';
 
@@ -86,9 +87,11 @@ export default function Integrations() {
         <div className="card-head"><h3>Email-to-ticket</h3></div>
         <div className="card-pad" style={{ paddingTop: 0 }}>
           <p className="muted" style={{ fontSize: 13 }}>
-            Inbound messages POSTed to <code>/api/integrations/inbound-email</code> become incidents;
-            replies containing the INC number thread onto the existing ticket. Connecting a live
-            support mailbox requires the customer's mailbox credentials (pending — BRD 16 dependency).
+            Inbound messages POSTed to <code>/api/integrations/inbound-email</code> (or fetched by the
+            IMAP listener) become incidents; replies are threaded by INC number or mail headers, and
+            customer-visible updates are emailed back on the same thread. Settings, keywords, templates,
+            the full log and the quarantine live under <Link to="/admin/email">Admin → Email channel</Link>.
+            Recent inbound messages:
           </p>
         </div>
         {!inbound ? <div className="loading-page"><Spinner dark /></div> : inbound.length === 0 ? (
@@ -103,7 +106,7 @@ export default function Integrations() {
                     <td>{m.from_email}</td>
                     <td className="muted">{m.subject || '—'}</td>
                     <td>{m.status}{m.error ? ` — ${m.error}` : ''}</td>
-                    <td className="tnum">{m.ticket_id || '—'}</td>
+                    <td className="tnum">{m.ticket_number ? <Link to={`/tickets/${m.ticket_id}`}>{m.ticket_number}</Link> : '—'}</td>
                     <td className="muted">{timeAgo(m.created_at)}</td>
                   </tr>
                 ))}

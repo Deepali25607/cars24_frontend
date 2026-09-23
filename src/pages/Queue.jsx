@@ -21,6 +21,8 @@ export default function Queue() {
   const status = params.get('status') || '';
   const prio = params.get('priority') || '';
   const cat = params.get('category') || '';
+  const sub = params.get('subcategory') || '';   // drill-down from analytics
+  const group = params.get('group') || '';       // drill-down from analytics
   const q = params.get('q') || '';
 
   useEffect(() => { api('/meta').then(setMeta).catch(() => {}); }, []);
@@ -32,10 +34,12 @@ export default function Queue() {
     if (status) qs.set('status', status);
     if (prio) qs.set('priority_id', prio);
     if (cat) qs.set('category_id', cat);
+    if (sub) qs.set('subcategory_id', sub);
+    if (group) qs.set('group_id', group);
     if (q) qs.set('q', q);
     setTickets(null);
     api(`/tickets?${qs}`).then(setTickets).catch(() => setTickets([]));
-  }, [scope, status, prio, cat, q, user.role]);
+  }, [scope, status, prio, cat, sub, group, q, user.role]);
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
@@ -77,6 +81,23 @@ export default function Queue() {
           {meta?.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
+
+      {(sub || group) && (
+        <div className="filters" style={{ marginTop: -6 }}>
+          {group && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setParam('group', '')}
+              title="Remove this filter">
+              Group: {meta?.groups.find((g) => String(g.id) === group)?.name || group} ✕
+            </button>
+          )}
+          {sub && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setParam('subcategory', '')}
+              title="Remove this filter">
+              Subcategory: {meta?.subcategories.find((s) => String(s.id) === sub)?.name || sub} ✕
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="card">
         {!tickets ? (

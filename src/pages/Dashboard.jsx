@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, timeAgo } from '../api';
 import { useAuth } from '../auth';
-import { BarList, Empty, Priority, Spinner, StatTile, StatusChip, STATUS_LABEL } from '../ui';
+import { Empty, Priority, Spinner, StatTile, StatusChip } from '../ui';
+import AnalyticsDashboard from '../dashboard/AnalyticsDashboard';
 
 export default function Dashboard() {
   const { user, isIT } = useAuth();
@@ -70,9 +71,6 @@ function EmployeeDashboard({ data }) {
 
 function ITDashboard({ data, user }) {
   const navigate = useNavigate();
-  const statusItems = (data.byStatus || [])
-    .map((s) => ({ label: STATUS_LABEL[s.status] || s.status, n: s.n }))
-    .sort((a, b) => b.n - a.n);
   return (
     <>
       <div className="page-head">
@@ -93,16 +91,9 @@ function ITDashboard({ data, user }) {
         <StatTile num={data.resolvedToday} label="Resolved today" onClick={() => navigate('/queue?status=RESOLVED')} />
       </div>
 
-      <div className="grid-2">
-        <div className="card card-pad">
-          <h2 style={{ marginBottom: 16 }}>Active workload by priority</h2>
-          <BarList items={(data.byPriority || []).map((p) => ({ label: p.code, n: p.n }))} />
-        </div>
-        <div className="card card-pad">
-          <h2 style={{ marginBottom: 16 }}>Tickets by status</h2>
-          <BarList items={statusItems} />
-        </div>
-      </div>
+      {/* KPI & analytics dashboard — priority/status breakdowns now live here
+          as interactive charts (superseding the former plain bar lists). */}
+      <AnalyticsDashboard />
     </>
   );
 }

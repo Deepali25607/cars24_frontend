@@ -40,6 +40,13 @@ const paths = {
   trend: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',
   sparkle: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM19 15l.9 2.4L22 18l-2.1.6L19 21l-.9-2.4L16 18l2.1-.6L19 15z',
   send: 'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z',
+  // Reports workspace icons
+  calendar: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  download: 'M12 3v12M6 11l6 6 6-6M4 21h16',
+  columns: 'M4 4h16v16H4zM10 4v16M16 4v16',
+  chevron: 'M6 9l6 6 6-6',
+  filter: 'M3 5h18l-7 8v6l-4 2v-8L3 5z',
+  layers: 'M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5',
 };
 
 export function Icon({ name, size = 18 }) {
