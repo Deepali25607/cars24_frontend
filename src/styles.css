@@ -831,3 +831,16 @@ table.data .nowrap { white-space: nowrap; }
 .efield-label { font-weight: 600; }
 .email-html { border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 13.5px; overflow-x: auto; background: #fff; color: #222; }
 .email-html img { max-width: 100%; }
+
+/* Email participants (ticket CC watch list) */
+.cc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cc-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  font-size: 12.5px; padding: 3px 6px 3px 10px; border-radius: 999px;
+  color: #6b46c1; background: rgba(107, 70, 193, 0.12); word-break: break-all;
+}
+.cc-chip .cc-x {
+  border: 0; background: none; cursor: pointer; color: inherit; opacity: 0.65;
+  font-size: 15px; line-height: 1; padding: 0 2px; width: auto;
+}
+.cc-chip .cc-x:hover { opacity: 1; }

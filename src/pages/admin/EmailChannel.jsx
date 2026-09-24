@@ -96,6 +96,8 @@ function Overview() {
         </p>
       </div>
 
+      <Diagnostics env={status.env} />
+
       <form className="card card-pad" onSubmit={save}>
         <h3 style={{ marginTop: 0 }}>Settings</h3>
         <div className="egrid">
@@ -209,6 +211,78 @@ function Stat({ label, value, ok }) {
     </div>
   );
 }
+// Production checklist + one-click SMTP / IMAP tests (report the server's own error).
+function Diagnostics({ env }) {
+  const toast = useToast();
+  const [smtp, setSmtp] = useState(null);
+  const [imap, setImap] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [to, setTo] = useState('');
+  const run = async (kind) => {
+    setBusy(kind);
+    try {
+      const r = await api(`/email/test/${kind}`, { method: 'POST', body: kind === 'smtp' ? { to: to || undefined } : {} });
+      (kind === 'smtp' ? setSmtp : setImap)(r);
+    } catch (e) { (kind === 'smtp' ? setSmtp : setImap)({ ok: false, error: e.message }); toast(e.message, true); }
+    finally { setBusy(''); }
+  };
+  if (!env) return null;
+  const Row = ({ k, v, ok }) => (
+    <tr><td style={{ fontFamily: 'monospace', fontSize: 12.5 }}>{k}</td><td>{ok !== undefined && <span className={`badge-dot ${ok ? 'ok' : 'off'}`} style={{ marginRight: 6 }} />}{String(v ?? '—')}</td></tr>
+  );
+  return (
+    <div className="card card-pad" style={{ marginBottom: 16 }}>
+      <h3 style={{ marginTop: 0 }}>Server settings & connection tests</h3>
+      <div className="grid-2">
+        <div>
+          <table className="data" style={{ fontSize: 13 }}>
+            <tbody>
+              <Row k="NODE_ENV" v={env.NODE_ENV} />
+              <Row k="SMTP_HOST" v={env.SMTP_HOST ? 'set' : 'NOT SET'} ok={env.SMTP_HOST} />
+              <Row k="SMTP_PORT / SMTP_SECURE" v={`${env.SMTP_PORT} / ${env.SMTP_SECURE}`} />
+              <Row k="SMTP_USER / SMTP_PASS" v={`${env.SMTP_USER ? 'set' : 'not set'} / ${env.SMTP_PASS ? 'set' : 'not set'}`} ok={env.SMTP_USER && env.SMTP_PASS} />
+              <Row k="SMTP_FROM" v={env.SMTP_FROM} />
+              <Row k="MAIL_IN_HOST" v={env.MAIL_IN_HOST || 'NOT SET'} ok={!!env.MAIL_IN_HOST} />
+              <Row k="MAIL_IN_PORT / SECURE" v={`${env.MAIL_IN_PORT} / ${env.MAIL_IN_SECURE}`} />
+              <Row k="MAIL_IN_USER" v={env.MAIL_IN_USER || 'NOT SET'} ok={!!env.MAIL_IN_USER} />
+              <Row k="MAIL_IN_PASS / OAUTH" v={`${env.MAIL_IN_PASS ? 'set' : 'not set'} / ${env.MAIL_IN_OAUTH_TOKEN ? 'set' : 'not set'}`} ok={env.MAIL_IN_PASS || env.MAIL_IN_OAUTH_TOKEN} />
+              <Row k="Portal URL" v={env.PORTAL_URL} />
+              <Row k="Mailbox address" v={env.mailbox_address || 'NOT SET'} ok={!!env.mailbox_address} />
+              <Row k="Allowed domains" v={(env.allowed_domains || []).join(', ') || '—'} />
+            </tbody>
+          </table>
+        </div>
+        <div className="stack">
+          <div>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <input placeholder="Send test email to (defaults to you)" value={to} onChange={(e) => setTo(e.target.value)} style={{ minWidth: 240 }} />
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'smtp'} onClick={() => run('smtp')}>Send test email (SMTP)</button>
+            </div>
+            {smtp && (
+              <pre className={smtp.ok ? 'ok-box' : 'error-box'} style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 12.5 }}>
+                {smtp.ok ? `OK — sent to ${smtp.to} in ${smtp.ms} ms (Message-ID ${smtp.message_id})` : `FAILED — ${smtp.error}${smtp.code ? ` (${smtp.code})` : ''}`}
+              </pre>
+            )}
+          </div>
+          <div>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'imap'} onClick={() => run('imap')}>Test mailbox connection (IMAP)</button>
+            {imap && (
+              <pre className={imap.ok ? 'ok-box' : 'error-box'} style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 12.5 }}>
+                {imap.ok
+                  ? `OK — ${imap.user}@${imap.host}: ${imap.folder} has ${imap.messages} message(s), ${imap.unseen} unread, in ${imap.ms} ms\nFolders: ${(imap.folders || []).join(', ')}`
+                  : `FAILED — ${imap.error}${imap.code ? ` (${imap.code})` : ''}`}
+              </pre>
+            )}
+          </div>
+          <p className="muted" style={{ fontSize: 12 }}>
+            Both tests use the server's environment variables exactly as the channel does. After changing variables on the host, restart the backend and re-run the tests.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, hint, children }) {
   return (
     <label className="efield">
@@ -391,7 +465,7 @@ function Templates() {
   };
 
   if (!data || !draft) return <div className="loading-page"><Spinner dark /></div>;
-  const LABEL = { ACK: 'Acknowledgement (new incident)', COMMENT: 'Agent comment', ASSIGNED: 'Assigned / reassigned', IN_PROGRESS: 'Work started', UPDATED: 'Details updated (category / priority / location)', ON_HOLD: 'On hold / awaiting user', RESOLVED: 'Resolved', CLOSED: 'Closed', REOPENED: 'Reopened', NOTIFY: 'Agent / lead notification (same thread)' };
+  const LABEL = { ACK: 'Acknowledgement (new incident)', COMMENT: 'Agent comment', ASSIGNED: 'Assigned / reassigned', IN_PROGRESS: 'Work started', UPDATED: 'Details updated (category / priority / location)', ON_HOLD: 'On hold / awaiting user', RESOLVED: 'Resolved', CLOSED: 'Closed', REOPENED: 'Reopened', NOTIFY: 'Agent / lead notification (same thread)', THREAD_ADDED: 'Added to CC (conversation so far)' };
   return (
     <div className="grid-2">
       <form className="card card-pad stack" onSubmit={save}>

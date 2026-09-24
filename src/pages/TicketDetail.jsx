@@ -249,6 +249,7 @@ export default function TicketDetail() {
           )}
           {t.sla && <SlaPanel sla={t.sla} status={t.status} isIT={isIT} />}
           {isIT && <MajorPanel t={t} user={user} onChanged={load} />}
+          <ParticipantsCard t={t} canManage={isIT || isRequester} onChanged={load} />
           {isIT && (t.source === 'EMAIL' || t.thread_subject) && <EmailThreadPanel t={t} />}
           {isIT && <AiPanel t={t} />}
           <div className="card card-pad">
@@ -316,8 +317,83 @@ function historyLabel(action) {
     AUTO_ASSIGNED: 'Auto-routed', WORKFLOW: 'Workflow ran', WORKFLOW_TASK: 'Workflow task',
     SLA_WARNING: 'SLA warning', SLA_BREACH: 'SLA breached', SLA_ESCALATION: 'SLA escalated',
     EMAIL_LINKED: 'Linked by email follow-up', EMAIL_BOUNCE: 'Email delivery failed',
+    EMAIL_CC_ADDED: 'Added to the email thread', EMAIL_CC_REMOVED: 'Removed from the email thread',
   };
   return map[action] || action;
+}
+
+// The ticket's CC watch list: everyone besides the caller who follows the email
+// thread. Several addresses can be added at once; each new one is sent the
+// conversation so far and is copied on every later update.
+function ParticipantsCard({ t, canManage, onChanged }) {
+  const toast = useToast();
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const cc = useMemo(() => {
+    try { const list = JSON.parse(t.cc_list || '[]'); return Array.isArray(list) ? list : []; } catch { return []; }
+  }, [t.cc_list]);
+  const closed = t.status === 'CLOSED';
+
+  const add = async (e) => {
+    e.preventDefault();
+    const emails = input.trim();
+    if (!emails) return;
+    setBusy(true);
+    try {
+      const r = await api(`/tickets/${t.id}/participants`, { method: 'POST', body: { emails } });
+      setInput('');
+      toast(r.emailed
+        ? `${r.added.join(', ')} added — the conversation so far has been emailed to them`
+        : `${r.added.join(', ')} added to the CC list`);
+      onChanged();
+    } catch (e2) { toast(e2.message, true); }
+    setBusy(false);
+  };
+
+  const remove = async (address) => {
+    if (!confirm(`Stop sending this ticket's emails to ${address}?`)) return;
+    setBusy(true);
+    try {
+      await api(`/tickets/${t.id}/participants/${encodeURIComponent(address)}`, { method: 'DELETE' });
+      toast(`${address} removed from the CC list`);
+      onChanged();
+    } catch (e2) { toast(e2.message, true); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="card card-pad">
+      <h3 style={{ marginBottom: 8 }}>✉ Email participants</h3>
+      <dl className="kv" style={{ marginBottom: 10 }}>
+        <dt>Caller</dt>
+        <dd>{t.caller_email || t.requester_email}</dd>
+      </dl>
+      <div className="cc-chips">
+        {cc.length === 0 && <span className="muted" style={{ fontSize: 12.5 }}>Nobody else is copied on this ticket.</span>}
+        {cc.map((address) => (
+          <span className="cc-chip" key={address}>
+            {address}
+            {canManage && !closed && (
+              <button type="button" className="cc-x" title={`Remove ${address}`} disabled={busy}
+                onClick={() => remove(address)}>×</button>
+            )}
+          </span>
+        ))}
+      </div>
+      {canManage && !closed && (
+        <form onSubmit={add} style={{ marginTop: 10 }}>
+          <input value={input} onChange={(e) => setInput(e.target.value)}
+            placeholder="name@company.com, another@company.com" aria-label="Add email addresses to CC" />
+          <div className="row" style={{ marginTop: 8 }}>
+            <button className="btn btn-primary btn-sm" disabled={busy || !input.trim()}>Add to CC</button>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Separate several addresses with commas. Each one gets the conversation so far and stays on the thread.
+            </span>
+          </div>
+        </form>
+      )}
+    </div>
+  );
 }
 
 // S10 extension: the email thread behind an email-sourced ticket (IT only).
@@ -334,7 +410,6 @@ function EmailThreadPanel({ t }) {
       </div>
       <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>
         Caller: {t.caller_email || t.requester_email}
-        {(() => { try { const cc = JSON.parse(t.cc_list || '[]'); return cc.length ? ` · CC: ${cc.join(', ')}` : ''; } catch { return ''; } })()}
       </p>
       {open && (rows === null ? <Spinner dark /> : rows.length === 0 ? <p className="muted">No emails logged.</p> : (
         <div className="timeline" style={{ marginTop: 10 }}>
