@@ -3,6 +3,7 @@ import { useAuth } from './auth'
 import Layout from './Layout'
 import { Spinner } from './ui'
 import Login from './pages/Login'
+import ForcePasswordChange from './pages/ForcePasswordChange'
 import Dashboard from './pages/Dashboard'
 import NewTicket from './pages/NewTicket'
 import TicketList from './pages/TicketList'
@@ -34,6 +35,8 @@ function Guard({ children, roles }) {
   const { user, booting } = useAuth()
   if (booting) return <div className="loading-page"><Spinner dark /></div>
   if (!user) return <Navigate to="/login" replace />
+  // Block the whole app until a default/reset password has been changed.
+  if (user.must_change_password) return <ForcePasswordChange />
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />
   return children
 }

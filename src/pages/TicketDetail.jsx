@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, API_BASE, fmtDate, timeAgo, getToken } from '../api';
+import { api, fmtDate, timeAgo, downloadFile } from '../api';
 import { useAuth } from '../auth';
 import { Avatar, Icon, Modal, Priority, Spinner, StatusChip, STATUS_LABEL, useToast } from '../ui';
 
@@ -63,14 +63,15 @@ export default function TicketDetail() {
     e.target.value = '';
   };
 
-  const viewAttachment = async (attId) => {
-    const res = await fetch(`${API_BASE}/tickets/${id}/attachments/${attId}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) { toast('Could not open attachment', true); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+  // Download attachments (never open in a new tab): an HTML/SVG attachment
+  // opened as a blob URL would run as script on the portal's own origin and
+  // could steal the session token. downloadFile forces a file save.
+  const viewAttachment = async (attId, name) => {
+    try {
+      await downloadFile(`/tickets/${id}/attachments/${attId}`, name || 'attachment');
+    } catch {
+      toast('Could not download attachment', true);
+    }
   };
 
   if (err) return <div className="error-box">{err}</div>;
@@ -146,7 +147,8 @@ export default function TicketDetail() {
               <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {t.attachments.map((a) => (
                   <button key={a.id} className="btn btn-ghost btn-sm" type="button"
-                    onClick={() => viewAttachment(a.id)}>
+                    title="Download attachment"
+                    onClick={() => viewAttachment(a.id, a.original_name)}>
                     <Icon name="paperclip" size={13} /> {a.original_name}
                     <span className="muted">({Math.max(1, Math.round(a.size_bytes / 1024))} KB)</span>
                   </button>

@@ -227,6 +227,7 @@ function GlobalSearch() {
 }
 
 function ChangePassword({ onClose, toast }) {
+  const { changePassword } = useAuth();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [err, setErr] = useState('');
@@ -237,10 +238,9 @@ function ChangePassword({ onClose, toast }) {
     setErr('');
     setBusy(true);
     try {
-      await api('/auth/change-password', {
-        method: 'POST',
-        body: { currentPassword: current, newPassword: next },
-      });
+      // Uses auth.changePassword so the fresh token is stored and the current
+      // session is not dropped by the server-side revocation.
+      await changePassword(current, next);
       toast('Password updated');
       onClose();
     } catch (e2) {

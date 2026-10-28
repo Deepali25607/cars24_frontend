@@ -34,10 +34,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Changing the password revokes old tokens server-side and returns a fresh one;
+  // store it so the current session survives, and clear the must-change flag.
+  const changePassword = async (currentPassword, newPassword) => {
+    const res = await api('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
+    if (res.token) setToken(res.token);
+    setUser((u) => (u ? { ...u, must_change_password: 0 } : u));
+    return res;
+  };
+
   const isIT = user && ['AGENT', 'TEAM_LEAD', 'ADMIN'].includes(user.role);
 
   return (
-    <AuthCtx.Provider value={{ user, setUser, login, logout, booting, isIT }}>
+    <AuthCtx.Provider value={{ user, setUser, login, logout, changePassword, booting, isIT }}>
       {children}
     </AuthCtx.Provider>
   );
